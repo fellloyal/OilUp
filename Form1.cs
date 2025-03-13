@@ -26,6 +26,9 @@ using System.Web;
 using System.Threading.Tasks;
 using System.Linq;
 
+using SdOilJson;
+using System.Threading;
+
 /*
 
 
@@ -68,24 +71,100 @@ namespace OilUp
         string g_URL_TankConfigure   = "https://cpy.zibo.gov.cn:8085/SoftInterface/TankConfigure";
         string g_URL_GunConfigure    = "https://cpy.zibo.gov.cn:8085/SoftInterface/GunConfigure";
         string g_URL_GasSaleData     = "https://cpy.zibo.gov.cn:8085/SoftInterface/GasSaleData";
-        string g_URL_GasTankData     = "https://cpy.zibo.gov.cn:8085/SoftInterface/GasTankData";
-        string g_URL_GasPurchaseInfo = "https://cpy.zibo.gov.cn:8085/SoftInterface/GasPurchaseInfo";
+        string g_URL_GasTankData     = "https://cpy.zibo.gov.cn:8085/SoftInterface/GasTankData"; //油罐数据
+        string g_URL_GasPurchaseInfo = "https://cpy.zibo.gov.cn:8085/SoftInterface/GasPurchaseInfo"; //进油数据
+
+        /// <summary>
+        /// API网关
+        /// </summary>
+        string g_API_gateWay = "http://192.168.1.125:6085";
+        /// <summary>
+        /// 油站信息接口地址
+        /// </summary> 
+        string g_URL_stationInfo = "/api/oilStation/stationInfo";
+        /// <summary>
+        /// 油罐信息接口地址
+        /// </summary>
+        string g_URL_tankInfo = "/api/tank/tankInfo";
+        /// <summary>
+        /// 油机信息接口地址
+        /// </summary>
+        string g_URL_tankerInfo = "/api/tanker/tankerInfo";
+        /// <summary>
+        /// 油枪信息接口地址
+        /// </summary>
+        string g_URL_gunInfo = "/api/gun/gunInfo";
+        /// <summary>
+        /// 加油流水接口地址
+        /// </summary>
+        string g_URL_siteRecord = "/api/record/siteRecord";
+        /// <summary>
+        /// 油罐流水接口地址
+        /// </summary>
+        string g_URL_oilTankRecord = "/api/tankSum/oilTankRecord";
+        /// <summary>
+        /// 更新加油设备、税口报警记录
+        /// </summary>
+        string g_URL_updateRecord = "/api/almTanker/updateRecord";
+        /// <summary>
+        /// 更新液位仪报警记录
+        /// </summary>
+        string g_URL_updateAlmLGInfoRecord = "/api/AlmLG/updateAlmLGInfoRecord";
+        /// <summary>
+        /// 接口密钥(由平台提供)
+        /// </summary>
+        string g_providerKey = "V5g0r9doO3";
+
+        string g_siteCode = ""; //油站编号
+        string g_operateCode = "add"; //操作编码
+
+        SdOilJson.StationInfo cur_station;
+        //生成cur_station
+        
+       
+            
+
+
+
+
+
+
         string g_sysNo      = "9000";                                
         string g_GasCode    = "xLa^CPZAEQcERjK7";                    
-        string g_ConnectStr = "xLa^CPZAEQcERjK7";                    
+                           
         string g_StationNo  = "00000016";
         string g_StationName= "淄博市xx加油站";
 
+        /// <summary>
+        /// 上传设置文件名
+        /// </summary>
         string iniUp                = "up.ini";                   //上传设置文件
-        string iniExportSQLDAT_CFG  = "ExportSQLDAT_CFG.ini";     //油站系统配置文件2
+        /// <summary>
+        /// 油站系统配置文件1 路径+文件名
+        /// </summary>
         string iniSysSet            = "SysSet.ini";               //油站系统配置文件1
+        /// <summary>
+        /// 油站系统数据文件夹
+        /// </summary>
         string iniTradeDataIni_Path = "d:\\";                     //油站系统数据文件夹
+        /// <summary>
+        /// 已上传文件名
+        /// </summary>
         string iniUpEndFile       = "Up__EndFile.ini";         //已上传文件名
 
-        string Trade_before = "Trade";
-        int TradeEndNum     = 10;   //交易信息的ini中section的长度
-        int iTimeSum=0;            //记录日志次数
+        
+    
+        /// <summary>
+        ///记录日志次数
+        /// </summary>
+        int iTimeSum =0;            //记录日志次数
+        /// <summary>
+        /// 定时器时间 默认60 配置为5 单位为秒
+        /// </summary>
         int iLoop = 60;            //定时器时间
+        /// <summary>
+        /// 当天上传次数
+        /// </summary>
         int iTodaySum = 0;         // 当天上传次数
 
 
@@ -97,11 +176,15 @@ namespace OilUp
 
 
         /// <summary>
-        ///循环处理待上传数据
+        ///循环处理待上传数据 主循环
         /// </summary>
         private void upLoop()
         {
-            
+            MessageBox.Show("upLoop");
+            get_station(); //读取及上传油站信息
+            get32();//读取及上传油罐信息
+            get33();//读取及上传油枪信息
+
             string postPathDir   = System.Environment.CurrentDirectory + "\\data";
             string UpEndFilePath = System.Environment.CurrentDirectory + "\\data\\"+ iniUpEndFile;
             List<string> lsUpEndFile = new List<string>();        //已经处理完毕的交易文件
@@ -112,6 +195,8 @@ namespace OilUp
 
             string sCurrentTradeFile;          //当前交易文件
             string sCurrentTradeFileDir;       //当前交易文件带路径
+
+
             var TradeFiles = Directory.GetFiles(iniTradeDataIni_Path, "*.ini");   //读入所有交易文件
             foreach (var file in TradeFiles) 
             {
@@ -119,16 +204,28 @@ namespace OilUp
                 sCurrentTradeFile = System.IO.Path.GetFileName(sCurrentTradeFileDir);//获取不含路径文件名
                 if (!lsUpEndFile.Contains(sCurrentTradeFile))  //如果当前文件未处理
                 {
-                    get34(sCurrentTradeFileDir, sCurrentTradeFile);
+                   
+                    get34(sCurrentTradeFileDir, sCurrentTradeFile); //处理交易上传
                 }
             }
-            //lll("Trade20200105.ini have");
+         
+            
 
-            get32();
-            get33();
         }
 
+        public void get_station()
+        { 
+            if(cur_station.IfUpdate == "1")
+            {
+                var json = JsonConvert.SerializeObject(cur_station);
+                string directValue = up(g_URL_stationInfo, json);
+                if (GetResult(directValue))
+                {
+                    INIHelper.Write("StationInfo", "IfUpdate", "0", iniUp);
+                }
+            }
 
+        }
         //测试函数
         private void timerTest_Tick(object sender, EventArgs e)
         {
@@ -182,7 +279,7 @@ namespace OilUp
         /// <param name="sCurrentTradeFile">当前交易文件</param>
         public void get34(string sCurrentTradeFileDir, string sCurrentTradeFile)
         {
-            string directValue = "";
+           
             string sCurrentDate = sCurrentTradeFile.Substring(6, 8);  //获取当前待操作日期
             string iniToday = sCurrentTradeFileDir;  //当前交易文件带路径   
 
@@ -201,26 +298,14 @@ namespace OilUp
             get34GasSaleData(iniToday);
             
 
-            //string pos = ReadIni(iniUp, "upload", "position");
-            //int iPos = Convert.ToInt32(pos);
-            //if (iPos == 0)
-            //{
-            //    pos = ReadIni(iniSysSet, "TradeNo", "TradeNo");
-            //    iPos = Convert.ToInt32(pos);
-            //    directValue = get34GasSaleData(iniToday, iPos);
-            //    lll("set trade start, new trade:" + pos + " result:" + directValue);
-            //}
-            //else if (iPos > 0)
-            //{
-            //    iPos = Convert.ToInt32(pos) + 1;
-            //    lll("set trade from:" + Convert.ToInt32(iPos));
-            //    directValue = get34GasSaleData(iniToday, iPos);
-            //    lll("set trade result:" + directValue);
-            //}
+           
         }
 
-        //读取十条交易数据2
-        //v_file:配置文件
+        /// <summary>
+        /// 读取十条交易数据
+        /// </summary>
+        /// <param name="v_file">配置文件param>
+        /// <returns></returns>
         public string get34GasSaleData(string v_file) //string v_section,
         {
             string directValue = "";
@@ -272,9 +357,7 @@ namespace OilUp
                     {
                         if (iBatchSum>10)  //一批次最多十条
                             break;
-                        //iSectionTmp = v_nowFlowNo + i;  //读取起始记录后的n条记录
-                        //v2_section = Convert.ToString(iSectionTmp);
-                        //v2_section = Trade_before + v2_section.PadLeft(TradeEndNum, '0');
+      
                         v2_section = sCurrentTrade;
 
                         ns34.SaleDataListItem vTankDataListItem = new ns34.SaleDataListItem();
@@ -482,12 +565,12 @@ namespace OilUp
 
 
         /// <summary>
-        ///是否调试模式 
+        ///是否调试模式 在当前目录下有debug.dat文件就是调试模式
         /// </summary>
         /// <returns>true表示是</returns>
         private bool IsDebug()
         {
-            string FilePath = "L:\\54fdasf6dsaf4f6dsa6.txt";
+            string FilePath = "debug.dat";
             if (File.Exists(FilePath))
             {
                 return true;
@@ -587,29 +670,64 @@ namespace OilUp
         //获取结果
         private bool GetResult(string jsonR)
         {
+            //反序列化jsonR
+            try
+            {
+                // 尝试将 JSON 字符串解析为 JObject 对象
+                JObject jsonObj = JObject.Parse(jsonR);
+
+                // 检查 "Result" 属性是否存在且值为 0
+                if (jsonObj["status"] != null && jsonObj["status"].Type == JTokenType.Integer && (int)jsonObj["status"] == 0)
+                {
+                    
+                        return true;
+                    
+                }
+            }
+            catch (Newtonsoft.Json.JsonException)
+            {
+                // 处理 JSON 解析异常
+                return false;
+            }
+
+            return false;
+
+            /*
             if (jsonR.IndexOf("\"Result\":0,\"Msg\":\"OK\"") <= 0)
                 return false;
             else
                 return true;
+            */
         }
-      
 
-        //初始化
+
+        /// <summary>
+        /// 初始化函数
+        /// </summary>
         private void Init()
         {
+            /// <summary>
+            /// 当前工作目录下的data文件夹
+            /// </summary>
             string postDataDir = System.Environment.CurrentDirectory + "\\data";
+            /// <summary>
+            /// 当前工作目录下的logs文件夹
+            /// </summary>
             string postLogsDir = System.Environment.CurrentDirectory + "\\logs";
-            if (!Directory.Exists(postDataDir))
+
+            if (!Directory.Exists(postDataDir)) //如果不存在则创建
             {
                 Directory.CreateDirectory(postDataDir);
             };
-            if (!Directory.Exists(postLogsDir))
+            if (!Directory.Exists(postLogsDir)) //如果不存在则创建
             {
                 Directory.CreateDirectory(postLogsDir);
             }
 
-            iniUp = System.Environment.CurrentDirectory + "\\" + iniUp;
+            iniUp = System.Environment.CurrentDirectory + "\\" + iniUp; //给up.ini文件加上路径
+
             g_StationName = ReadIni(iniUp, "set", "g_StationName");
+          //  MessageBox.Show(g_StationName);
 
             g_URL_GasConfigure = ReadIni(iniUp, "set", "g_URL_GasConfigure");
             g_URL_TankConfigure = ReadIni(iniUp, "set", "g_URL_TankConfigure");
@@ -617,17 +735,62 @@ namespace OilUp
             g_URL_GasSaleData = ReadIni(iniUp, "set", "g_URL_GasSaleData");
             g_URL_GasTankData = ReadIni(iniUp, "set", "g_URL_GasTankData");
             g_URL_GasPurchaseInfo = ReadIni(iniUp, "set", "g_URL_GasPurchaseInfo");
+
+
+
+            g_API_gateWay = ReadIni(iniUp, "set", "g_API_gateWay");
+            g_URL_stationInfo = g_API_gateWay + ReadIni(iniUp, "set", "g_URL_stationInfo");
+            g_URL_tankInfo = g_API_gateWay + ReadIni(iniUp, "set", "g_URL_tankInfo");
+            g_URL_tankerInfo = g_API_gateWay + ReadIni(iniUp, "set", "g_URL_tankerInfo");
+            g_URL_gunInfo = g_API_gateWay + ReadIni(iniUp, "set", "g_URL_gunInfo");
+            g_URL_siteRecord = g_API_gateWay + ReadIni(iniUp, "set", "g_URL_siteRecord");
+            g_URL_oilTankRecord = g_API_gateWay + ReadIni(iniUp, "set", "g_URL_oilTankRecord");
+            g_URL_updateRecord = g_API_gateWay + ReadIni(iniUp, "set", "g_URL_updateRecord");
+            g_URL_updateAlmLGInfoRecord = g_API_gateWay + ReadIni(iniUp, "set", "g_URL_updateAlmLGInfoRecord");
+
+            g_providerKey = ReadIni(iniUp, "set", "g_providerKey");
+
+            cur_station = new SdOilJson.StationInfo();
+            //读取配置文件中的StationInfo段
+            cur_station.address = ReadIni(iniUp, "StationInfo", "address");
+            cur_station.state = ReadIni(iniUp, "StationInfo", "state");
+            cur_station.city = ReadIni(iniUp, "StationInfo", "city");
+            cur_station.operateCode = ReadIni(iniUp, "StationInfo", "operateCode");
+            cur_station.province = ReadIni(iniUp, "StationInfo", "province");
+            cur_station.lat = ReadIni(iniUp, "StationInfo", "lat");
+            cur_station.lng = ReadIni(iniUp, "StationInfo", "lng");
+            cur_station.registerType = ReadIni(iniUp, "StationInfo", "registerType");
+            cur_station.startDate = ReadIni(iniUp, "StationInfo", "startDate");
+            cur_station.town = ReadIni(iniUp, "StationInfo", "town");
+            cur_station.county = ReadIni(iniUp, "StationInfo", "county");
+            cur_station.groupId = ReadIni(iniUp, "StationInfo", "groupId");
+
+            cur_station.peopleNum = ReadIni(iniUp, "StationInfo", "peopleNum");
+            cur_station.telephone = ReadIni(iniUp, "StationInfo", "telephone");
+            cur_station.name = ReadIni(iniUp, "StationInfo", "name");
+            cur_station.siteCode = ReadIni(iniUp, "StationInfo", "siteCode");
+            g_siteCode = cur_station.siteCode;
+            cur_station.providerKey = g_providerKey;
+            cur_station.IfUpdate = ReadIni(iniUp, "StationInfo", "IfUpdate");
+
+
+
+
+
+
+
+
             g_sysNo = ReadIni(iniUp, "set", "g_sysNo");
             g_GasCode = ReadIni(iniUp, "set", "g_GasCode");
-            g_ConnectStr = ReadIni(iniUp, "set", "g_ConnectStr");
+       
             g_StationNo = ReadIni(iniUp, "set", "g_StationNo");
 
-            iniExportSQLDAT_CFG = ReadIni(iniUp, "set", "ExportSQLDAT_CFG");
+         
             iniSysSet = ReadIni(iniUp, "set", "iniSysSet");
             iniTradeDataIni_Path = ReadIni(iniUp, "set", "iniTradePath");
             iLoop = Convert.ToInt32(ReadIni(iniUp, "set", "loop",60));
 
-            timerMain.Interval = iLoop * 1000;
+            timerMain.Interval = iLoop * 1000; //计时器的单位为毫秒
             timerMain.Enabled  = true;
 
             if (!IsDebug())
@@ -636,12 +799,12 @@ namespace OilUp
                 button2.Visible = false;
                 button3.Visible = false;
                 button4.Visible = false;
-                button5.Visible = false;
+                
                 button6.Visible = false;
                 button7.Visible = false;
-
+                button8.Visible = false;
                 timerTest.Enabled = false; //测试用的定时器
-                if (g_sysNo == "")
+                if (g_providerKey == "")
                 {
                     lll("调试状态不能使用正式参数");
                     timerMain.Enabled = false;
@@ -655,9 +818,10 @@ namespace OilUp
                 button2.Visible = true;
                 button3.Visible = true;
                 button4.Visible = true;
-                button5.Visible = true;
+              
                 button6.Visible = true;
                 button7.Visible = true;
+                button8.Visible = true;
 
                 timerMain.Enabled = false;
                 timerOnce.Enabled = false;
@@ -689,17 +853,7 @@ namespace OilUp
         //上传数据 string v_url, 
         public string up(string _url,string v_json)
         {
-            //v_json = "{\"SysNo\":\"9000\",\"GasCode\":\"xLa^CPZAEQcERjK7\",\"Param\":{\"StationNo\":\"00000016\",\"StationName\":\"淄博市一号加油站\",\"TankList\":[{\"TankNo\":\"01\",\"TankName\":\"第1号油罐\",\"TankVolume\":29000.000,\"OilCode\":\"1000\",\"OilName\":\"汽油\",\"GunList\":[{\"SysId\":\"01_1\",\"GunNo\":\"01\"},{\"SysId\":\"01_2\",\"GunNo\":\"02\"}]},{\"TankNo\":\"02\",\"TankName\":\"第2号油罐\",\"TankVolume\":29000.000,\"OilCode\":\"1000\",\"OilName\":\"汽油\",\"GunList\":[{\"SysId\":\"02_1\",\"GunNo\":\"04\"},{\"SysId\":\"02_2\",\"GunNo\":\"05\"},{\"SysId\":\"02_3\",\"GunNo\":\"06\"}]}]}}";
-            //_url = "https://cpy.zibo.gov.cn:8085/SoftInterface/GasConfigure";
-
-            //v_json = "{\"SysNo\":\"9000\",\"GasCode\":\"xLa^CPZAEQcERjK7\",\"Param\":{\"StationNo\":\"00000016\",\"TankDataList\":[{\"FlowNo\":\"1000\",\"GunNo\":\"01\",\"OptTime\":\"2020-01-01 10:32:34\",\"OilNo\":\"1000\",\"OilAbbreviate\":\"汽油\",\"Price\":6.720,\"Qty\":100.000,\"Amount\":672.000,\"TTC\":100,\"EndTotal\":4121.600,\"TransType\":\"0\",\"OperatorName\":\"胡某某\",\"Consumer\":\"张某某\",\"PlateNum\":\"鲁C16E62\",\"TankNo\":\"01\"}]}}";
-            //_url = "https://cpy.zibo.gov.cn:8085/SoftInterface/GasSaleData";
-
-            //v_json = "{ \"SysNo\":\"9000\",\"GasCode\":\"xLa^CPZAEQcERjK7\",\"Param\":{ \"StationNo\":\"00000016\",\"GunNo\":\"01\",\"SysId\":\"01\",\"TankNo\":\"01\"} } ";
-            //_url = "https://cpy.zibo.gov.cn:8085/SoftInterface/GunConfigure/";
-
-            //v_json = "{\"SysNo\":\"9000\",\"GasCode\":\"xLa^CPZAEQcERjK7\",\"Param\":{\"StationNo\":\"00000016\",\"TankNo\":\"01\",\"TankName\":\"第1号油罐\",\"TankVolume\":29000.000,\"OilCode\":\"1000\",\"OilName\":\"汽油\"}} ";
-            //_url = "https://cpy.zibo.gov.cn:8085/SoftInterface/TankConfigure";
+            
 
             lll("json=" + v_json);
             ServicePointManager.ServerCertificateValidationCallback = ValidateServerCertificate;
@@ -749,36 +903,6 @@ namespace OilUp
         //3300 	LNG 	2916 	其他轻柴油
         //5500 	甲醇
 
-        //-------------------------------------
-        //if (ShortOil.IndexOf("") > -1)
-        //{
-        //    o.OilCode = "";
-        //    o.OilName = "";
-        //}
-
-        //if (ShortOil.IndexOf("00#") > -1)
-        //{
-        //    o.OilCode = "2017";
-        //    o.OilName = "0#柴油(国三)";
-        //}
-
-        //if (ShortOil.IndexOf("10#") > -1)
-        //{
-        //    o.OilCode = "2018";
-        //    o.OilName = "-10#柴油(国三)";
-        //}
-
-        //if (ShortOil.IndexOf("10#") > -1)
-        //{
-        //    o.OilCode = "2912";
-        //    o.OilName = "10#柴油";
-        //}
-
-        //if (ShortOil.IndexOf("20#") > -1)
-        //{
-        //    o.OilCode = "2913";
-        //    o.OilName = "20#柴油";
-        //}
 
 
 
@@ -1170,19 +1294,18 @@ namespace OilUp
 
 
 
-        /// ///////////////////////////////////////////////////////////////////////////
-        //////发送油枪信息2
-        //v_file:配置文件
-        //gunNum:枪数目
+        /// <summary>
+        /// 读取油枪配置信息2
+        /// </summary>
+        /// <param name="v_file">配置文件</param>
+        /// <param name="gunNum">枪数目</param>
+        /// <returns></returns>
         public string get33GunConfigure(string v_file, int gunNum) 
         {
             string directValue = "";
             string sGunNo, sTankNo; 
 
-            ns33.GunConfigure vGunConfigure = new ns33.GunConfigure(); ;
-            vGunConfigure.SysNo   = g_sysNo;
-            vGunConfigure.GasCode = g_GasCode;
-            vGunConfigure.Param   = new ns33.Param();
+          
             int i = 0;
             int pos = 0;
             for (i = 0; i < gunNum; i++)  
@@ -1201,18 +1324,65 @@ namespace OilUp
                     sGunNo  = sGunNo.PadLeft(2, '0');
                     sTankNo = sTankNo.PadLeft(2, '0');
 
-                    vGunConfigure.Param.StationNo = g_StationNo;
-                    vGunConfigure.Param.GunNo     = sGunNo;
-                    vGunConfigure.Param.SysId     = sGunNo;
-                    vGunConfigure.Param.TankNo    = sTankNo;
 
-                    var json = JsonConvert.SerializeObject(vGunConfigure);
-                    directValue = up(g_URL_GunConfigure,json);
+                    SdOilJson.TankerInfo tankerInfo = new SdOilJson.TankerInfo();
+                    tankerInfo.operateCode = g_operateCode;
+                    tankerInfo.siteCode = g_siteCode;
+                    tankerInfo.providerKey = g_providerKey;
+                    tankerInfo.tankerCode = sGunNo;
+                    tankerInfo.machineType = "1";
+                    tankerInfo.factoryNum = "1";
+                    tankerInfo.manufacturer = "1";
+                    tankerInfo.startDate = "2021-01-01";
+                    tankerInfo.sealCode = "1";
+                    tankerInfo.state = "0";
+                    tankerInfo.name = cur_station.name;
+
+                    var json = JsonConvert.SerializeObject(tankerInfo);
+                    directValue = up(g_URL_tankerInfo, json);
+                    if (!GetResult(directValue))  //提交失败,退出循环
+                    {
+                        lll("set tanker Result error : json=" + json);
+                        break;
+                    }
+                    Thread.Sleep(300);
+
+                    SdOilJson.GunInfo gunInfo = new SdOilJson.GunInfo();
+                    gunInfo.operateCode = g_operateCode;
+                    gunInfo.providerKey = g_providerKey;
+                    gunInfo.siteCode = g_siteCode;
+                    gunInfo.gunNum = sGunNo;
+                    gunInfo.tankerCode = sGunNo;
+                    gunInfo.gunNum2 = 0;
+                    // Change the type of gunInfo.tankNum to int
+                    gunInfo.tankNum = int.Parse(sTankNo);
+                    //按油罐取油品
+                    string tank_section = "Tank" + (gunInfo.tankNum - 1);
+    
+                    string sOil = ReadIni(v_file, tank_section, "OilCode");
+                    gunInfo.type = sOil;
+                    gunInfo.portNum = 1;
+                    gunInfo.codeNum = "7";
+                    gunInfo.cpuCode = "89";
+                    gunInfo.status = 1;
+                 
+
+
+
+                    //   gunInfo.type = sTankNo;
+
+
+
+
+                    json = JsonConvert.SerializeObject(gunInfo);
+                    directValue = up(g_URL_gunInfo, json);
                     if (!GetResult(directValue))  //提交失败,退出循环
                     {
                         lll("set gun Result error : json=" + json);
                         break;
                     }
+                    Thread.Sleep(300);
+
                     pos++ ;
                 }
                 catch (DivideByZeroException e)
@@ -1228,9 +1398,11 @@ namespace OilUp
             }
             return directValue;
         }
-        
 
-        //读取油枪配置信息1
+
+         /// <summary>
+        ///  读取油枪配置信息1
+        /// </summary>
         public void get33()
         {
             if (!System.IO.File.Exists(iniSysSet)) //判断文件是否存在
@@ -1250,20 +1422,17 @@ namespace OilUp
         }
 
 
-
-        /// ///////////////////////////////////////////////////////////////////////////
-        //发送油罐信息2
-        //v_file:配置文件
-        //TankNum:油罐数目
+        /// <summary>
+        /// 读取油罐配置信息2
+        /// </summary>
+        /// <param name="v_file">配置文件</param>
+        /// <param name="TankNum">油罐数目</param>
+        /// <returns></returns>
         public string get32TankConfigure(string v_file, int TankNum)
         {
             string  directValue = "";
             string  sTankNo;
-
-            ns32.TankConfigure vTankConfigure = new ns32.TankConfigure(); ;
-            vTankConfigure.SysNo = g_sysNo;
-            vTankConfigure.GasCode = g_GasCode;
-            vTankConfigure.Param = new ns32.Param();
+                        
             int i = 0;
             int pos = 0;
             for (i = 0; i < TankNum; i++)
@@ -1278,20 +1447,20 @@ namespace OilUp
                     {
                         break;
                     }
-                    sTankNo = sTankNo.PadLeft(2, '0');
-                    vTankConfigure.Param.StationNo   = g_StationNo;
-                    vTankConfigure.Param.TankNo      = sTankNo;
-                    vTankConfigure.Param.TankName    = ReadIni(v_file, v2_section, "TankName"); 
-                    vTankConfigure.Param.TankName    = sTankNo;
-                    vTankConfigure.Param.TankVolume  = Convert.ToInt32(ReadIni(v_file, v2_section, "TankVolume",30000)) ;
-
+                    SdOilJson.TankInfo tankInfo = new SdOilJson.TankInfo();
+                    tankInfo.tankNum = sTankNo;
                     string sOil = ReadIni(v_file, v2_section, "OilCode");
-                    OilType o = GetOil(sOil);
-                    vTankConfigure.Param.OilCode  = o.OilCode;
-                    vTankConfigure.Param.OilName  = o.OilName;
+                    tankInfo.oilType = sOil;
+                    tankInfo.maxAllowance = ReadIni(v_file, v2_section, "TankVolume", 30000);
+                    tankInfo.operateCode = g_operateCode;
+                    tankInfo.siteCode = g_siteCode;
+                    tankInfo.providerKey = g_providerKey;
 
-                    var json = JsonConvert.SerializeObject(vTankConfigure);
-                    directValue = up(g_URL_TankConfigure, json);
+
+
+
+                    var json = JsonConvert.SerializeObject(tankInfo);
+                    directValue = up(g_URL_tankInfo, json);
 
                     if (!GetResult(directValue))  //提交失败,退出循环 
                     {
@@ -1318,7 +1487,10 @@ namespace OilUp
 
 
 
-        //读取油罐配置信息1
+       
+        /// <summary>
+        /// 读取油罐配置信息1
+        /// </summary>
         public void get32()
         {
             if (!System.IO.File.Exists(iniSysSet)) //判断文件是否存在
@@ -1340,6 +1512,7 @@ namespace OilUp
 
         private void button1_Click_1(object sender, EventArgs e)
         {
+           
         }            
 
 
@@ -1429,6 +1602,32 @@ namespace OilUp
 
         private void Form1_Load(object sender, EventArgs e)
         {
+
+        }
+
+        private void button1_Click_2(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button6_Click_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button3_Click_1(object sender, EventArgs e)
+        {
+            get_station();
+        }
+
+        private void button4_Click_1(object sender, EventArgs e)
+        {
+            get32();
+        }
+
+        private void button8_Click_1(object sender, EventArgs e)
+        {
+            get33();
 
         }
     }

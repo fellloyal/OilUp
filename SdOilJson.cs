@@ -173,6 +173,10 @@ namespace SdOilJson
         /// 创建时间
         /// </summary>
         public string createTime { get; set; }
+        /// <summary>
+        /// 是否上传，1：未上传，0：已上传
+        /// </summary>
+        public string IfUpdate { get; set; }
      
 
     }
@@ -407,7 +411,7 @@ namespace SdOilJson
     }
 
     /// <summary>
-    /// 更新记录类
+    /// 更新加油设备，税口报警记录类
     /// </summary>
     public class UpdateRecord
     {
@@ -456,6 +460,61 @@ namespace SdOilJson
         /// </summary>
         public string cpuCode { get; set; }
     }
+    /// <summary>
+    /// 更新液位仪报警记录类
+    /// </summary>
+    public class UpdateAlmLGInfoRecord
+    {
+        /// <summary>
+        /// 秘钥，由平台方分配
+        /// </summary>
+        public string providerKey { get; set; }
+
+        /// <summary>
+        /// 油站编号
+        /// </summary>
+        public string siteCode { get; set; }
+
+        /// <summary>
+        /// 报警状态，0:默认未恢复，1:已恢复
+        /// </summary>
+        public int status { get; set; }
+
+        /// <summary>
+        /// 恢复时间，例如：2024-06-18 11:03:31，status为1时必填
+        /// </summary>
+        public string recoveryTime { get; set; }
+
+        /// <summary>
+        /// 离线时间，例如：2024-06-18 11:03:31
+        /// </summary>
+        public string offlineTime { get; set; }
+
+        /// <summary>
+        /// 报警信息
+        /// </summary>
+        public string msg { get; set; }
+    }
 
 
+    /// <summary>
+    /// 返回结果类
+    /// </summary>
+    public class Result
+    {
+        /// <summary>
+        /// 结果状态，0：成功，非0：失败
+        /// </summary>
+        public int status { get; set; }
+        /// <summary>
+        /// 结果信息
+        /// </summary>
+        public string msg { get; set; }
+        ///<summary>
+        ///结果数据
+        ///</summary>
+        public string data { get; set; }
+
+
+    }
 }
